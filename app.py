@@ -1,16 +1,16 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 페이지 설정
+# 1. 페이지 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 나만의 캐릭터 AI 월드")
 
-# API 설정
+# 2. API 설정
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# 캐릭터 30명 데이터 (성격과 상황을 분리)
+# 3. 캐릭터 30명 데이터
 CHARACTERS = {
     "이준서 (학생회장)": {"desc": "냉철하고 까칠한 전교 1등", "sit": "학생회실에서 서류를 정리하다 당신을 불렀습니다."},
     "한소율 (반장)": {"desc": "밝고 다정한 인기 만점 반장", "sit": "교실 청소 중에 당신에게 아이스크림을 건넵니다."},
@@ -23,4 +23,5 @@ CHARACTERS = {
     "오지호 (전교회장 라이벌)": {"desc": "승부욕 강한 야망가", "sit": "복도에서 당신을 멈춰 세우고 진지하게 내기를 제안합니다."},
     "임채영 (선도부)": {"desc": "원칙주의자 선도부장", "sit": "교문 앞에서 교칙 위반이라며 당신을 붙잡습니다."},
     "송유진 (보건위원)": {"desc": "차분하고 따뜻한 보건위원", "sit": "보건실 침대에 누운 당신에게 다정하게 약을 챙겨줍니다."},
-    "권지용 (밴드부)": {"desc": "자유분방한 락밴드 기타리스트", "sit": "교내 축
+    "권지용 (밴드부)": {"desc": "자유분방한 락밴드 기타리스트", "sit": "교내 축제 연습실에서 기타를 치다 당신에게 합류하라고 합니다."},
+    "조하은 (요
