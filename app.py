@@ -1,20 +1,18 @@
 import streamlit as st
-import requests
+import google.generativeai as genai
 
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 캐릭터 AI 월드")
 
-# API 키 가져오기
+# API 키 설정
 api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("Secrets에 GEMINI_API_KEY가 없습니다!")
-    st.stop()
+genai.configure(api_key=api_key)
 
-# 캐릭터 정의
+# 캐릭터 설정
 CHARACTERS = {
-    "이준서 (학생회장)": "너는 이준서야. 전교 1등에 까칠한 학생회장. 츤데레 말투를 써.",
-    "한소율 (반장)": "너는 한소율이야. 밝고 다정한 반장. 항상 웃으면서 말해.",
-    "루시안 (공작)": "너는 루시안이야. 차갑고 고독한 밤의 공작."
+    "이준서": "너는 이준서야. 까칠한 학생회장.",
+    "한소율": "너는 한소율이야. 다정한 반장.",
+    "루시안": "너는 루시안이야. 차가운 공작."
 }
 
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
@@ -27,7 +25,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# 메시지 전송 로직 (공식 라이브러리 없이 직접 통신)
+# 메시지 전송 로직
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
@@ -35,24 +33,17 @@ if user_input := st.chat_input("메시지 입력..."):
 
     with st.chat_message("assistant"):
         try:
-            # 💡 구글 API 직통 호출 (v1beta 규격)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            # 모델 설정 (가장 표준적인 호출 방식)
+            model = genai.GenerativeModel("gemini-1.5-flash")
             
-            # 대화 데이터 구성
-            payload = {
-                "contents": [{
-                    "parts": [{"text": f"System: {CHARACTERS[selected_char]}\nUser: {user_input}"}]
-                }]
-            }
+            # 대화 기록과 시스템 명령 합치기
+            chat = model.start_chat(history=[])
+            prompt = f"System: {CHARACTERS[selected_char]}\nUser: {user_input}"
             
-            # 직접 요청 보내기
-            response = requests.post(url, json=payload)
-            res_data = response.json()
+            # 응답 받기
+            response = chat.send_message(prompt)
             
-            # 답변 파싱
-            ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
-            
-            st.write(ai_text)
-            st.session_state.messages.append({"role": "assistant", "content": ai_text})
+            st.write(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
         except Exception as e:
-            st.error(f"통신 에러: {e}")
+            st.error(f"대화 오류: {e}")
