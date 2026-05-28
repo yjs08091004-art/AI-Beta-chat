@@ -1,3 +1,7 @@
+import os
+# ⚠️ 구글 AI 라이브러리를 최신 버전으로 강제 업데이트하는 코드 (404 에러 방지용)
+os.system("pip install --upgrade google-generativeai")
+
 import streamlit as st
 import google.generativeai as genai
 
@@ -81,7 +85,6 @@ if user_input := st.chat_input("캐릭터에게 메시지를 보내세요..."):
 
     with st.chat_message("assistant"):
         try:
-            # ⚠️ 에러 해결을 위해 model_name 부분을 'models/gemini-1.5-flash'로 수정했습니다.
             model = genai.GenerativeModel(
                 model_name="gemini-1.5-flash",
                 system_instruction=CHARACTERS[selected_char]
