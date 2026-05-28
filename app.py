@@ -83,7 +83,7 @@ if user_input := st.chat_input("캐릭터에게 메시지를 보내세요..."):
         try:
             # ⚠️ 에러 해결을 위해 model_name 부분을 'models/gemini-1.5-flash'로 수정했습니다.
             model = genai.GenerativeModel(
-                model_name="models/gemini-1.5-flash",
+                model_name="gemini-1.5-flash",
                 system_instruction=CHARACTERS[selected_char]
             )
             
