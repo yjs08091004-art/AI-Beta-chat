@@ -28,8 +28,8 @@ if user_input := st.chat_input("메시지 입력..."):
 
     with st.chat_message("assistant"):
         try:
-            # 💡 핵심 수정: 'models/'를 삭제하고 호출!
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            # 💡 모델을 gemini-pro로 변경 (가장 에러 적음)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
             
             headers = {"Content-Type": "application/json"}
             payload = {
@@ -47,7 +47,7 @@ if user_input := st.chat_input("메시지 입력..."):
                 st.write(ai_text)
                 st.session_state.messages.append({"role": "assistant", "content": ai_text})
             else:
-                st.error(f"오류: {response.text}")
+                st.error(f"오류 발생: {response.text}")
                 
         except Exception as e:
-            st.error(f"통신 중 예외 발생: {str(e)}")
+            st.error(f"통신 에러: {str(e)}")
