@@ -1,13 +1,20 @@
 import streamlit as st
 import google.generativeai as genai
 
+# 페이지 기본 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 나만의 캐릭터 AI 월드")
 
-api_key = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-1.5-flash")
+# API 설정
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+except Exception as e:
+    st.error("API 키 설정 오류: " + str(e))
+    st.stop()
 
+# 캐릭터 데이터
 CHARACTERS = {
     "이준서 (학생회장)": {"desc": "냉철하고 까칠한 전교 1등", "sit": "학생회실에서 서류를 정리하다 당신을 불렀습니다."},
     "한소율 (반장)": {"desc": "밝고 다정한 인기 만점 반장", "sit": "교실 청소 중에 당신에게 아이스크림을 건넵니다."},
@@ -41,23 +48,30 @@ CHARACTERS = {
     "진세연 (천문부)": {"desc": "밤하늘을 좋아하는 몽상가", "sit": "옥상에서 별자리를 찾자고 합니다."}
 }
 
+# 사이드바
 selected_char = st.sidebar.selectbox("대화할 캐릭터", list(CHARACTERS.keys()))
 char_info = CHARACTERS[selected_char]
 
+# 대화 세션 관리
 if "current_char" not in st.session_state or st.session_state.current_char != selected_char:
     st.session_state.current_char = selected_char
     st.session_state.messages = [{"role": "assistant", "content": f"[{char_info['sit']}]\n\n{selected_char}: 안녕? 할 말이 있어서 불렀어."}]
 
+# 채팅 표시
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
+# 메시지 처리
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.write(user_input)
     with st.chat_message("assistant"):
-        prompt = f"당신은 {selected_char}입니다. 성격: {char_info['desc']}. 상황: {char_info['sit']}. 대답해주세요.\n사용자: {user_input}"
-        res = model.generate_content(prompt)
-        st.write(res.text)
-        st.session_state.messages.append({"role": "assistant", "content": res.text})
+        try:
+            full_prompt = f"너는 {selected_char}이고, {char_info['desc']}야. 상황은 {char_info['sit']} 상황이야. 이 상황에 맞춰 짧고 자연스럽게 대답해줘.\n사용자: {user_input}"
+            response = model.generate_content(full_prompt)
+            st.write(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            st.error("앗, 캐릭터가 대답을 거부했어요. 다시 시도해주세요.")
