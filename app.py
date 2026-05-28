@@ -1,46 +1,33 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
 
-# 페이지 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 캐릭터 AI 월드")
 
-# API 키 설정
-try:
-    if "GEMINI_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    else:
-        st.error("Secrets에 GEMINI_API_KEY를 등록해 주세요!")
-        st.stop()
-except Exception as e:
-    st.error(f"설정 오류: {e}")
+# API 키 가져오기
+api_key = st.secrets.get("GEMINI_API_KEY")
+if not api_key:
+    st.error("Secrets에 GEMINI_API_KEY가 없습니다!")
     st.stop()
 
 # 캐릭터 정의
 CHARACTERS = {
-    "이준서 (학생회장)": "너는 이준서야. 냉철하고 까칠한 전교 1등 학생회장. 츤데레 말투를 사용해.",
-    "한소율 (반장)": "너는 한소율이야. 밝고 다정한 인기 만점 반장. 항상 웃으면서 말해.",
-    "루시안 (공작)": "너는 루시안이야. 차갑고 고독한 밤의 공작. 비밀스러운 로판 주인공처럼 말해."
+    "이준서 (학생회장)": "너는 이준서야. 전교 1등에 까칠한 학생회장. 츤데레 말투를 써.",
+    "한소율 (반장)": "너는 한소율이야. 밝고 다정한 반장. 항상 웃으면서 말해.",
+    "루시안 (공작)": "너는 루시안이야. 차갑고 고독한 밤의 공작."
 }
 
-# 사이드바 선택
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 세션 관리
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 캐릭터 변경 시 초기화
-if "current_char" not in st.session_state or st.session_state.current_char != selected_char:
-    st.session_state.current_char = selected_char
-    st.session_state.messages = [{"role": "assistant", "content": f"안녕, 나는 {selected_char}야. 무슨 일 있어?"}]
-
-# 이전 대화 출력
+# 채팅창 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# 채팅 입력 처리
+# 메시지 전송 로직 (공식 라이브러리 없이 직접 통신)
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
@@ -48,20 +35,24 @@ if user_input := st.chat_input("메시지 입력..."):
 
     with st.chat_message("assistant"):
         try:
-            # 💡 404 방지: 모델 경로를 정확히 지정하고 generate_content 사용
-            model = genai.GenerativeModel("models/gemini-1.5-flash")
+            # 💡 구글 API 직통 호출 (v1beta 규격)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
             
-            # 이전 대화와 시스템 설정을 합친 프롬프트 생성
-            context = f"System: {CHARACTERS[selected_char]}\n"
-            for msg in st.session_state.messages[:-1]:
-                context += f"{msg['role']}: {msg['content']}\n"
+            # 대화 데이터 구성
+            payload = {
+                "contents": [{
+                    "parts": [{"text": f"System: {CHARACTERS[selected_char]}\nUser: {user_input}"}]
+                }]
+            }
             
-            full_prompt = context + f"user: {user_input}"
+            # 직접 요청 보내기
+            response = requests.post(url, json=payload)
+            res_data = response.json()
             
-            # 답변 생성
-            response = model.generate_content(full_prompt)
+            # 답변 파싱
+            ai_text = res_data['candidates'][0]['content']['parts'][0]['text']
             
-            st.write(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            st.write(ai_text)
+            st.session_state.messages.append({"role": "assistant", "content": ai_text})
         except Exception as e:
-            st.error(f"대화 중 오류 발생: {e}")
+            st.error(f"통신 에러: {e}")
