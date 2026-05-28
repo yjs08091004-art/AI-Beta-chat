@@ -1,15 +1,13 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
 
-# 페이지 설정
-st.set_page_config(page_title="나만의 캐릭터 AI 월드", page_icon="🎭", layout="wide")
-st.title("🎭 나만의 캐릭터 AI 월드 (30인 풀멤버)")
+st.set_page_config(page_title="AI 월드", page_icon="🎭")
+st.title("🎭 나만의 캐릭터 AI 월드")
 
-# API 키 설정
+# API 키 가져오기
 api_key = st.secrets.get("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
 
-# 30명 캐릭터 백과사전
+# 30명 데이터
 CHARACTERS = {
     "이준서 (학생회장)": "너는 이준서. 냉철한 학생회장.", "한소율 (반장)": "너는 한소율. 다정한 반장.",
     "강은우 (소꿉친구)": "너는 강은우. 장난기 많은 소꿉친구.", "윤세아 (밴드부)": "너는 윤세아. 시크한 기타리스트.",
@@ -28,16 +26,12 @@ CHARACTERS = {
     "미카엘 (천사)": "너는 미카엘. 타락 천사.", "바알 (악마)": "너는 바알. 내 영혼의 악마."
 }
 
-selected_char = st.sidebar.selectbox("캐릭터 선택 (총 30명)", list(CHARACTERS.keys()))
+selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 캐릭터 변경 시 초기화
-if "current_char" not in st.session_state or st.session_state.current_char != selected_char:
-    st.session_state.current_char = selected_char
-    st.session_state.messages = [{"role": "assistant", "content": f"안녕? 난 {selected_char}야."}]
-
+# 채팅창 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
@@ -49,11 +43,18 @@ if user_input := st.chat_input("메시지 입력..."):
 
     with st.chat_message("assistant"):
         try:
-            # 💡 호출 핵심: gemini-1.5-flash라고만 적음 (절대 models/ 안 붙임!)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(f"{CHARACTERS[selected_char]}\n\n사용자: {user_input}")
+            # 💡 모델 경로를 아예 다르게 우회하는 방식
+            url = f"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?key={api_key}"
+            payload = {
+                "model": "gemini-1.5-flash",
+                "messages": [{"role": "user", "content": f"{CHARACTERS[selected_char]}\n{user_input}"}]
+            }
             
-            st.write(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            response = requests.post(url, json=payload)
+            res_data = response.json()
+            
+            ai_text = res_data['choices'][0]['message']['content']
+            st.write(ai_text)
+            st.session_state.messages.append({"role": "assistant", "content": ai_text})
         except Exception as e:
-            st.error(f"오류: {e}")
+            st.error(f"서버가 아직 예전 코드를 기억하고 있어요. 꼭 'Reboot app'을 눌러주세요! 에러: {e}")
