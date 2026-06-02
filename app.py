@@ -5,11 +5,11 @@ import google.generativeai as genai
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 나만의 캐릭터 AI 월드")
 
-# API 설정
+# API 키 가져오기 (Streamlit Secrets 설정 필수)
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
-# 2. 보안 설정 해제 및 모델 로드
+# 2. 안전 설정 완화
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -18,7 +18,7 @@ safety_settings = [
 ]
 model = genai.GenerativeModel(model_name="gemini-1.5-flash", safety_settings=safety_settings)
 
-# 3. 캐릭터 30명 데이터
+# 3. 캐릭터 데이터 30명
 CHARACTERS = {
     "이준서 (학생회장)": {"desc": "냉철한 전교 1등", "sit": "학생회실에서 서류를 정리 중입니다."},
     "한소율 (반장)": {"desc": "다정한 인기 반장", "sit": "교실 청소 중 아이스크림을 건넵니다."},
@@ -52,32 +52,33 @@ CHARACTERS = {
     "진세연 (천문부)": {"desc": "밤하늘 몽상가", "sit": "옥상에서 별자리를 찾자고 합니다."}
 }
 
-# 4. 채팅 세션 관리
+# 4. 채팅 세션 시작
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 캐릭터가 바뀌면 새로운 채팅 세션 시작
+# 캐릭터 선택이 바뀌면 새 채팅 세션 시작
 if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
     st.session_state.chat = model.start_chat(history=[])
     char_info = CHARACTERS[selected_char]
-    initial_prompt = f"너는 지금부터 {selected_char}({char_info['desc']})야. 상황: {char_info['sit']}. 이 상황에 맞춰서 짧고 자연스럽게 대화해줘."
-    response = st.session_state.chat.send_message(initial_prompt)
+    # 캐릭터 설정 프롬프트
+    prompt = f"너는 {selected_char}야. 성격: {char_info['desc']}. 상황: {char_info['sit']}. 이 상황에 맞춰 짧고 친근하게 대답해줘."
+    st.session_state.chat.send_message(prompt)
     st.session_state.messages = [{"role": "assistant", "content": f"[{char_info['sit']}] {selected_char}: 안녕? 할 말이 있어서 불렀어."}]
     st.session_state.last_char = selected_char
 
-# 메시지 출력
+# 대화 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]): st.write(msg["content"])
 
-# 5. 채팅 입력
+# 메시지 입력
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"): st.write(user_input)
     
     with st.chat_message("assistant"):
         try:
-            # 채팅 세션 사용 (기억력 최고!)
+            # 채팅 세션 사용
             response = st.session_state.chat.send_message(user_input)
             st.write(response.text)
             st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception as e:
+        except:
             st.write(f"{selected_char}: (갑자기 말을 잇지 못한다...)")
