@@ -4,11 +4,10 @@ import google.generativeai as genai
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🏫")
 st.title("🏫 AI 캐릭터 월드")
 
-# API 설정
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# 캐릭터 데이터
+# 30명 캐릭터 데이터 전체 복구
 CHARACTERS = {
     "이준서 (학생회장)": {"desc": "냉철한 전교 1등, 학생회실에서 서류 정리 중", "greet": "학생회실엔 무슨 일이지? 용건만 간단히 해."},
     "한소율 (반장)": {"desc": "다정한 인기 반장, 교실 청소 중 아이스크림을 건넴", "greet": "어, 왔어? 청소 도와주러 온 거야? 아이스크림 먹을래?"},
@@ -44,22 +43,16 @@ CHARACTERS = {
 
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 세션 초기화 및 대화창 설정
 if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
     st.session_state.messages = []
     st.session_state.chat = model.start_chat(history=[])
     st.session_state.last_char = selected_char
-    
-    # 첫 인사 저장
-    first_msg = CHARACTERS[selected_char]['greet']
-    st.session_state.messages.append({"role": "assistant", "content": first_msg})
+    st.session_state.messages.append({"role": "assistant", "content": CHARACTERS[selected_char]['greet']})
 
-# 메시지 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# 메시지 입력
 if user_input := st.chat_input("메시지를 입력하세요..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
@@ -67,11 +60,10 @@ if user_input := st.chat_input("메시지를 입력하세요..."):
     
     with st.chat_message("assistant"):
         try:
-            # 매번 캐릭터 정보를 포함하여 프롬프트 전송
             char_data = CHARACTERS[selected_char]
-            prompt = f"당신은 {selected_char}입니다. 상황: {char_data['desc']}. 위 상황을 유지하며 사용자의 다음 말에 답변하세요: {user_input}"
-            response = st.session_state.chat.send_message(prompt)
+            # 모델 호출 시 안전하게 데이터를 전달
+            response = st.session_state.chat.send_message(f"너는 {selected_char}야. {char_data['desc']} 지금 질문에 답변해: {user_input}")
             st.write(response.text)
             st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception as e:
-            st.error("오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+        except Exception:
+            st.error("오류 발생: 다시 한번 입력해 주세요.")
