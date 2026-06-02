@@ -1,80 +1,57 @@
 import streamlit as st
 import google.generativeai as genai
 
+# 1. 페이지 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🏫")
-st.title("🏫 여고의 유일한 남학생: AI 월드")
+st.title("🏫 여고의 유일한 남학생")
 
+# 2. API 및 모델 설정 (가장 상단에 배치하여 에러 방지)
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel("gemini-1.5-flash")
 
-safety = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-]
-model = genai.GenerativeModel(model_name="gemini-1.5-flash", safety_settings=safety)
-
-# 60명 데이터 (이름 + 설정 완벽 복구)
+# 3. 데이터 구조: 여기서 에러가 나는 것을 방지하기 위해 딕셔너리를 더 짧게 작성
 CHARACTERS = {
-    # 기존 캐릭터 40명
-    "이준서 (학생회장)": "냉철한 전교 1등, 학생회실 정리 중", "한소율 (반장)": "다정한 반장, 아이스크림 건넴",
-    "강은우 (소꿉친구)": "장난기 많은 친구, 옥상에서 노을 구경", "서윤아 (전학생)": "신비로운 전학생, 도서관 구석에 있음",
-    "박도윤 (운동부)": "열정적인 농구부, 벤치에서 말 검", "최이현 (도서부)": "조용한 책벌레, 도서관에서 마주침",
-    "김민재 (예술가)": "까칠한 미술부, 초상화 그려줌", "정하린 (아이돌)": "비밀 연습생, 음악실에서 연습 중",
-    "오지호 (라이벌)": "야망가, 복도에서 내기 제안", "임채영 (선도부)": "원칙주의자, 교문 앞에서 잡음",
-    "송유진 (보건위원)": "차분한 보건위원, 보건실 지킴", "권지용 (밴드부)": "자유로운 기타리스트, 곡 들려줌",
-    "조하은 (요리부)": "덤벙거리는 요리부, 쿠키 맛보라 함", "백현우 (방송부)": "장난기 많은 방송부, 인터뷰 중",
-    "홍지수 (체육부장)": "활기찬 체육부장, 달리기 시합 제안", "신시아 (학생회 임원)": "지적인 총무, 과제 논의",
-    "윤석진 (천재해커)": "말없는 천재, 해킹 화면 보여줌", "강태오 (연극부)": "연기자, 무대 독백 연습",
-    "양지민 (과학부)": "실험 덕후, 도움 요청", "문다은 (만화부)": "엉뚱한 화가, 만화 모델 요청",
-    "배진우 (급식먹보)": "식당 요정, 메뉴 추천", "차수현 (아나운서)": "화려한 말솜씨, 편지 읽어줌",
-    "이도현 (서기)": "소심한 서기, 기록지 확인", "남궁민 (응원단장)": "응원단장, 노래 불러줌",
-    "표예림 (미화부)": "깔끔한 성격, 잔소리 함", "구준회 (음악부)": "피아니스트, 연주 중",
-    "하도윤 (봉사부)": "봉사자, 꽃밭 가꾸기", "최유정 (사서)": "깐깐한 사서, 벌칙 부여",
-    "황민현 (영어동아리)": "쿨한 친구, 문장 해석", "진세연 (천문부)": "몽상가, 별자리 찾기",
-    "백서준 (운동부)": "인기남, 물 건네줌", "나현아 (수영부)": "수영 실력파, 대화 중",
-    "도진우 (신문부)": "기자 정신, 특종 제보", "임아린 (무용부)": "발레리나, 춤 보여줌",
-    "강민준 (검도부)": "검도부, 대련 제안", "서지혜 (패션부)": "패션 리더, 스타일 지적",
-    "한재이 (사진부)": "사진작가, 사진 찍음", "박주희 (승마부)": "승마부, 말 구경",
-    "최준희 (봉사부)": "길고양이 돌봄", "김도연 (연극부)": "연출가, 세트 이동 요청",
-    
-    # 여고 상황극 캐릭터 20명
-    "지수 (여고생)": "유일한 남학생인 당신을 보며 얼굴 빨개짐", "민아 (여고생)": "남학생이 신기해서 계속 말 검",
-    "연우 (여고생)": "무슨 용기로 여고에 왔냐고 놀림", "채린 (여고생)": "자꾸 도시락 나눠주려 함",
-    "서희 (여고생)": "남학생 손 잡아보고 싶다고 함", "하윤 (여고생)": "학교 비밀 장소 알려준다고 함",
-    "지안 (여고생)": "당신의 교복 깃 정리해줌", "윤서 (여고생)": "다른 여고생들이 노린다고 경고",
-    "다은 (여고생)": "몰래 사탕 건네줌", "수아 (여고생)": "복도에서 자꾸 어깨 부딪힘",
-    "아린 (여고생)": "화장실 갈 때까지 따라옴", "은지 (여고생)": "남학생 향기 난다며 킁킁거림",
-    "채윤 (여고생)": "이름 적힌 쪽지 교환 요청", "현우 (여고생)": "교실 문 앞에서 당신 기다림",
-    "도희 (여고생)": "체육 시간에 당신 구경함", "세아 (여고생)": "선생님 몰래 옆자리에 앉음",
-    "해인 (여고생)": "당신이 남학생이라 너무 편하다고 함", "수민 (여고생)": "어디 가지 말라고 소매 잡음",
-    "소영 (여고생)": "당신을 전교생에게 자랑함", "보라 (여고생)": "이 구역의 남학생은 내 거라 함"
+    "이준서": "학생회장", "한소율": "반장", "강은우": "소꿉친구", "서윤아": "전학생", "박도윤": "농구부",
+    "최이현": "책벌레", "김민재": "미술부", "정하린": "연습생", "오지호": "라이벌", "임채영": "선도부",
+    "송유진": "보건위원", "권지용": "기타리스트", "조하은": "요리부", "백현우": "방송부", "홍지수": "체육부장",
+    "신시아": "총무", "윤석진": "해커", "강태오": "연극부", "양지민": "과학부", "문다은": "화가",
+    "배진우": "급식먹보", "차수현": "아나운서", "이도현": "서기", "남궁민": "응원단장", "표예림": "미화부",
+    "구준회": "피아니스트", "하도윤": "봉사자", "최유정": "사서", "황민현": "영어부", "진세연": "천문부",
+    "백서준": "운동부", "나현아": "수영부", "도진우": "신문부", "임아린": "발레리나", "강민준": "검도부",
+    "서지혜": "패션리더", "한재이": "사진작가", "박주현": "승마부", "최준희": "봉사부", "김도연": "연출가",
+    "지수": "여고생", "민아": "여고생", "연우": "여고생", "채린": "여고생", "서희": "여고생",
+    "하윤": "여고생", "지안": "여고생", "윤서": "여고생", "다은": "여고생", "수아": "여고생",
+    "아린": "여고생", "은지": "여고생", "채윤": "여고생", "현우": "여고생", "도희": "여고생",
+    "세아": "여고생", "해인": "여고생", "수민": "여고생", "소영": "여고생", "보라": "여고생"
 }
 
-# 1. 캐릭터 선택
-selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
+# 4. 캐릭터 선택
+selected_name = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 2. 채팅 세션
-if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
+# 5. 세션 관리: 캐릭터 변경 시에만 딱 1번만 프롬프트 전송
+if "last_name" not in st.session_state or st.session_state.last_name != selected_name:
     st.session_state.chat = model.start_chat(history=[])
-    char_desc = CHARACTERS[selected_char]
-    prompt = f"너는 {selected_char}야. (상황: {char_desc}). 여고에 유일한 남학생인 나와 대화하고 있어. 캐릭터로서 자연스럽게 반응해줘."
+    role = CHARACTERS[selected_name]
+    # 모델에 "딱 이 캐릭터 정보"만 전달하여 데이터 과부하 방지
+    prompt = f"너는 여고생 {selected_name}({role})야. 우리 학교는 여고인데, 유일한 남학생인 나와 대화하고 있어. 나를 보면 신기해하고 호기심을 보여줘."
     st.session_state.chat.send_message(prompt)
-    st.session_state.messages = [{"role": "assistant", "content": f"{selected_char}: 안녕? {char_desc.split(',')[0].strip()}."}]
-    st.session_state.last_char = selected_char
+    st.session_state.messages = [{"role": "assistant", "content": f"{selected_name}: 어? 여기 여고인데 남학생이 있네? 신기하다!"}]
+    st.session_state.last_name = selected_name
 
-# 3. 화면 출력
+# 6. 채팅 화면 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]): st.write(msg["content"])
 
-# 4. 입력
+# 7. 메시지 입력 및 전송
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"): st.write(user_input)
+    
     with st.chat_message("assistant"):
         try:
+            # chat 세션을 통해 모델 응답 생성
             res = st.session_state.chat.send_message(user_input)
             st.write(res.text)
             st.session_state.messages.append({"role": "assistant", "content": res.text})
-        except:
-            st.write(f"{selected_char}: (앗, 선생님 지나가신다! 이따 말해!)")
+        except Exception as e:
+            st.error("대화 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
