@@ -1,21 +1,23 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 페이지 및 설정
+# 1. 페이지 및 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 나만의 캐릭터 AI 월드 (60명)")
 
+# API 및 모델 설정
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# 안전 설정 (완전 해제)
+# 모든 필터 완전 해제
 safety = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
+model = genai.GenerativeModel(model_name="gemini-1.5-flash", safety_settings=safety)
 
-# 60명 데이터 딕셔너리
+# 2. 60명 캐릭터 데이터
 CHARACTERS = {
     "이준서 (학생회장)": "냉철한 전교 1등, 학생회실에서 서류 정리 중",
     "한소율 (반장)": "다정한 인기 반장, 교실 청소 중 아이스크림을 건넴",
@@ -79,29 +81,28 @@ CHARACTERS = {
     "임하늘 (비행부)": "드론 조종사, 드론 촬영 도와달라 함"
 }
 
-# 1. 캐릭터 선택
+# 3. 캐릭터 선택 및 대화 로직
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 2. 채팅 초기화 (선택 시점에 캐릭터 데이터 1개만 주입)
 if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
     st.session_state.chat = model.start_chat(history=[])
     char_desc = CHARACTERS[selected_char]
+    # 캐릭터 설정 주입
     st.session_state.chat.send_message(f"너는 {selected_char}야. 특징: {char_desc}. 캐릭터로서 자연스럽게 대화해.")
-    st.session_state.messages = [{"role": "assistant", "content": f"{selected_char}: 안녕? {char_desc.split(',')[1].strip()}."}]
+    st.session_state.messages = [{"role": "assistant", "content": f"{selected_char}: 안녕? 무슨 일이야?"}]
     st.session_state.last_char = selected_char
 
-# 3. 화면 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]): st.write(msg["content"])
 
-# 4. 메시지 전송
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"): st.write(user_input)
+    
     with st.chat_message("assistant"):
         try:
             res = st.session_state.chat.send_message(user_input)
             st.write(res.text)
             st.session_state.messages.append({"role": "assistant", "content": res.text})
         except:
-            st.write(f"{selected_char}: (앗, 대화가 꼬였어. 다시 한번 말해줄래?)")
+            st.write(f"{selected_char}: (앗, 잠깐만! 다른 말을 해볼래?)")
