@@ -1,12 +1,23 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🏫")
+# 페이지 설정
+st.set_page_config(
+    page_title="AI 캐릭터 월드",
+    page_icon="🏫"
+)
+
 st.title("🏫 AI 캐릭터 월드")
 
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# Gemini API 설정
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+except Exception as e:
+    st.error("Gemini API Key를 불러올 수 없습니다.")
+    st.exception(e)
+    st.stop()
 
-# 30명 캐릭터 데이터 전체
+# 캐릭터 데이터
 CHARACTERS = {
     "이준서 (학생회장)": "냉철한 전교 1등, 학생회실에서 서류 정리 중",
     "한소율 (반장)": "다정한 인기 반장, 교실 청소 중 아이스크림을 건넴",
@@ -29,46 +40,90 @@ CHARACTERS = {
     "양지민 (과학부)": "실험 덕후, 과학실에서 비커를 들고 도움 청함",
     "문다은 (만화부)": "엉뚱한 화가, 당신을 만화 모델로 그림",
     "배진우 (급식먹보)": "급식 사랑, 식당에서 맛있는 메뉴 추천",
-    "차수현 (아나운서)": "화려한 말쌈씨, 방송 중 편지를 읽어줌",
+    "차수현 (아나운서)": "화려한 말솜씨, 방송 중 편지를 읽어줌",
     "이도현 (학생회 서기)": "소심한 서기, 기록지 문제로 정보를 물어봄",
     "남궁민 (응원단장)": "당찬 응원단장, 연습 중 노래를 불러줌",
     "표예림 (미화부)": "깔끔한 성격, 신발자국 보고 잔소리함",
     "구준회 (음악부)": "감성 피아니스트, 피아노 연주하며 쳐다봄",
-    "하도윤 (봉사부)": "따뜻한 봉사자, 꽃밭에서 물뿌리개 건냄",
+    "하도윤 (봉사부)": "따뜻한 봉사자, 꽃밭에서 물뿌리개 건넴",
     "최유정 (사서)": "깐깐한 사서, 벌칙을 주려 함",
     "황민현 (영어동아리)": "쿨한 친구, 어려운 문장 해석해줌",
     "진세연 (천문부)": "밤하늘 몽상가, 옥상에서 별자리 찾자고 함"
 }
 
-selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
+# 사이드바
+selected_char = st.sidebar.selectbox(
+    "캐릭터 선택",
+    list(CHARACTERS.keys())
+)
 
-# 세션 상태에 캐릭터와 채팅 세션 보관
-if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
+# 캐릭터 변경 시 초기화
+if (
+    "last_char" not in st.session_state
+    or st.session_state.last_char != selected_char
+):
     st.session_state.messages = []
     st.session_state.last_char = selected_char
-    
-    # 모델 설정 및 채팅 시작
-    system_inst = f"당신은 {selected_char}입니다. 상황: {CHARACTERS[selected_char]}. 캐릭터답게 짧고 자연스럽게 답변하세요."
-    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_inst)
-    st.session_state.chat = model.start_chat(history=[])
-    
-    st.session_state.messages.append({"role": "assistant", "content": f"{selected_char}: 안녕? 무슨 일이야?"})
 
-# 채팅 기록 출력
+    try:
+        system_inst = (
+            f"당신은 {selected_char}입니다.\n"
+            f"상황: {CHARACTERS[selected_char]}\n"
+            f"항상 캐릭터처럼 행동하고 "
+            f"짧고 자연스럽게 대답하세요."
+        )
+
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=system_inst
+        )
+
+        st.session_state.chat = model.start_chat(
+            history=[]
+        )
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": f"{selected_char}: 안녕? 무슨 일이야?"
+        })
+
+    except Exception as e:
+        st.error("모델 생성 중 오류 발생")
+        st.exception(e)
+        st.stop()
+
+# 채팅 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# 메시지 입력
-if user_input := st.chat_input("메시지를 입력하세요..."):
-    st.session_state.messages.append({"role": "user", "content": user_input})
+# 입력
+user_input = st.chat_input("메시지를 입력하세요...")
+
+if user_input:
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_input
+    })
+
     with st.chat_message("user"):
         st.write(user_input)
-    
+
     with st.chat_message("assistant"):
         try:
-            response = st.session_state.chat.send_message(user_input)
-            st.write(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception:
-            st.error("오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+            response = st.session_state.chat.send_message(
+                user_input
+            )
+
+            answer = response.text
+
+            st.write(answer)
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer
+            })
+
+        except Exception as e:
+            st.error("Gemini 응답 생성 중 오류 발생")
+            st.exception(e)
