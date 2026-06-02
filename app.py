@@ -1,11 +1,10 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 페이지 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🏫")
 st.title("🏫 AI 캐릭터 월드")
 
-# API 설정 (Secret 키 사용)
+# API 설정
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
@@ -43,36 +42,30 @@ CHARACTERS = {
     "진세연 (천문부)": "밤하늘 몽상가, 옥상에서 별자리 찾자고 함"
 }
 
-# 캐릭터 선택 사이드바
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 세션 초기화 및 채팅 시작
+# 세션 초기화 및 대화 시작
 if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
     st.session_state.chat = model.start_chat(history=[])
     st.session_state.messages = []
     st.session_state.last_char = selected_char
-    
-    # 캐릭터 초기화 프롬프트
-    initial_prompt = f"너는 {selected_char}야. {CHARACTERS[selected_char]}. 지금부터 이 캐릭터로 나랑 대화해줘."
-    st.session_state.chat.send_message(initial_prompt)
+    # 캐릭터 역할을 명확하게 1회만 전달하여 오류 방지
     st.session_state.messages.append({"role": "assistant", "content": f"{selected_char}: 안녕? 무슨 일이야?"})
 
-# 채팅 내용 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# 사용자 입력 처리
 if user_input := st.chat_input("메시지를 입력하세요..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.write(user_input)
     
     with st.chat_message("assistant"):
-        with st.spinner("생각 중..."):
-            try:
-                response = st.session_state.chat.send_message(user_input)
-                st.write(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except Exception as e:
-                st.error("대화 중 오류가 발생했습니다. 다시 시도해주세요.")
+        try:
+            # 대화 맥락을 포함한 메시지 전송
+            response = st.session_state.chat.send_message(f"캐릭터 정보: {selected_char} - {CHARACTERS[selected_char]}. 위 설정대로 답변해줘. 사용자 질문: {user_input}")
+            st.write(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception:
+            st.error("대화 생성 중 오류가 발생했습니다.")
