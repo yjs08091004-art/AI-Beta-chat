@@ -1,22 +1,24 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. 페이지 및 API 설정
+# 1. 페이지 및 설정
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🎭")
 st.title("🎭 나만의 캐릭터 AI 월드")
 
+# API 설정
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
-# 2. 모델 설정: 안전 설정을 BLOCK_NONE으로 완벽히 해제
+# 2. 보안 설정 해제 및 모델 로드
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
+model = genai.GenerativeModel(model_name="gemini-1.5-flash", safety_settings=safety_settings)
 
-# 3. 캐릭터 데이터 (이전과 동일)
+# 3. 캐릭터 30명 데이터
 CHARACTERS = {
     "이준서 (학생회장)": {"desc": "냉철한 전교 1등", "sit": "학생회실에서 서류를 정리 중입니다."},
     "한소율 (반장)": {"desc": "다정한 인기 반장", "sit": "교실 청소 중 아이스크림을 건넵니다."},
@@ -50,38 +52,32 @@ CHARACTERS = {
     "진세연 (천문부)": {"desc": "밤하늘 몽상가", "sit": "옥상에서 별자리를 찾자고 합니다."}
 }
 
-# 4. 모델 재설정 (System Instruction 포함)
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    safety_settings=safety_settings,
-    system_instruction="당신은 캐릭터입니다. 역할에 100% 몰입하세요. 대답은 항상 짧고 친근하며, 상황에 맞는 말투를 사용하세요."
-)
-
+# 4. 채팅 세션 관리
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
+
+# 캐릭터가 바뀌면 새로운 채팅 세션 시작
 if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
-    st.session_state.messages = [{"role": "assistant", "content": f"[{CHARACTERS[selected_char]['sit']}] {selected_char}: 안녕? 할 말이 있어."}]
+    st.session_state.chat = model.start_chat(history=[])
+    char_info = CHARACTERS[selected_char]
+    initial_prompt = f"너는 지금부터 {selected_char}({char_info['desc']})야. 상황: {char_info['sit']}. 이 상황에 맞춰서 짧고 자연스럽게 대화해줘."
+    response = st.session_state.chat.send_message(initial_prompt)
+    st.session_state.messages = [{"role": "assistant", "content": f"[{char_info['sit']}] {selected_char}: 안녕? 할 말이 있어서 불렀어."}]
     st.session_state.last_char = selected_char
 
+# 메시지 출력
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]): st.write(msg["content"])
 
+# 5. 채팅 입력
 if user_input := st.chat_input("메시지 입력..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"): st.write(user_input)
-
-    # 5. 최신 5개 대화만 추려서 전송 (서버 부하 감소)
-    recent_messages = st.session_state.messages[-6:]
-    chat = model.start_chat(history=[])
     
     with st.chat_message("assistant"):
         try:
-            # 캐릭터 설정 프롬프트 포함
-            full_context = f"현재 캐릭터: {selected_char}, 성격: {CHARACTERS[selected_char]['desc']}, 상황: {CHARACTERS[selected_char]['sit']}\n"
-            for m in recent_messages:
-                full_context += f"{m['role']}: {m['content']}\n"
-            
-            res = model.generate_content(full_context)
-            st.write(res.text)
-            st.session_state.messages.append({"role": "assistant", "content": res.text})
-        except:
-            st.write(f"{selected_char}: (방금 말한 내용에 대해 골똘히 생각 중이야...)")
+            # 채팅 세션 사용 (기억력 최고!)
+            response = st.session_state.chat.send_message(user_input)
+            st.write(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            st.write(f"{selected_char}: (갑자기 말을 잇지 못한다...)")
