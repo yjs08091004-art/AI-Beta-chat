@@ -4,9 +4,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="AI 캐릭터 월드", page_icon="🏫")
 st.title("🏫 AI 캐릭터 월드")
 
-# API 설정
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-1.5-flash")
 
 # 캐릭터 데이터 (30명)
 CHARACTERS = {
@@ -44,12 +42,14 @@ CHARACTERS = {
 
 selected_char = st.sidebar.selectbox("캐릭터 선택", list(CHARACTERS.keys()))
 
-# 세션 초기화 및 대화 시작
+# 세션 관리
 if "last_char" not in st.session_state or st.session_state.last_char != selected_char:
-    st.session_state.chat = model.start_chat(history=[])
     st.session_state.messages = []
     st.session_state.last_char = selected_char
-    # 캐릭터 역할을 명확하게 1회만 전달하여 오류 방지
+    # 캐릭터 정보를 시스템 설정으로 넣어 모델 생성
+    system_instruction = f"당신은 {selected_char}입니다. 상황: {CHARACTERS[selected_char]}. 이 캐릭터의 성격과 상황을 유지하며 짧고 자연스럽게 답변하세요."
+    st.session_state.model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
+    st.session_state.chat = st.session_state.model.start_chat(history=[])
     st.session_state.messages.append({"role": "assistant", "content": f"{selected_char}: 안녕? 무슨 일이야?"})
 
 for msg in st.session_state.messages:
@@ -63,9 +63,8 @@ if user_input := st.chat_input("메시지를 입력하세요..."):
     
     with st.chat_message("assistant"):
         try:
-            # 대화 맥락을 포함한 메시지 전송
-            response = st.session_state.chat.send_message(f"캐릭터 정보: {selected_char} - {CHARACTERS[selected_char]}. 위 설정대로 답변해줘. 사용자 질문: {user_input}")
+            response = st.session_state.chat.send_message(user_input)
             st.write(response.text)
             st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception:
-            st.error("대화 생성 중 오류가 발생했습니다.")
+        except Exception as e:
+            st.error("오류 발생: 잠시 후 다시 시도해주세요.")
